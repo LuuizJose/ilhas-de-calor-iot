@@ -26,14 +26,25 @@ O sistema utiliza um ESP32 integrado ao sensor DHT22 para detectar temperatura e
 
 ## Estrutura do repositório
 
+```text
 ilhas-de-calor-iot/
 ├── codigo/
-│   ├── sketch.ino       # Código principal
-│   └── libraries.txt    # Bibliotecas necessárias
+│   ├── sketch.ino
+│   │   └── Código principal do ESP32
+│   └── libraries.txt
+│       └── Lista de bibliotecas necessárias
+│
 ├── simulacao/
-│   └── diagram.json     # Circuito para simulação no Wokwi
+│   └── diagram.json
+│       └── Configuração do circuito para simulação no Wokwi
+│   └── diagram.png
+│       └── Fluxo em Diagrama do processo
+│
 └── docs/
-└── hardware.md      # Descrição do hardware
+    └── hardware.md
+        └── Documentação dos componentes de hardware utilizados
+```
+
 
 
 ## Protocolo MQTT
