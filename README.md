@@ -46,7 +46,7 @@ ilhas-de-calor-iot/
 | `mackenzie/ilhas-calor/temperatura` | Publica temperatura em °C |
 | `mackenzie/ilhas-calor/umidade` | Publica umidade em % |
 | `mackenzie/ilhas-calor/bomba` | Status da bomba (LIGADA/DESLIGADA) |
-| `mackenzie/ilhas-calor/comando` | Recebe LIGAR ou DESLIGAR |
+
 
 ## Monitorar via browser
 
