@@ -4,7 +4,7 @@
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
-#define RELAY_PIN 5
+#define LED_PIN 5
 #define TEMP_CRITICA 30.0
 
 const char* ssid = "Wokwi-GUEST";
@@ -15,13 +15,25 @@ const int mqtt_port = 1883;
 
 const char* topic_temp = "mackenzie/ilhas-calor/temperatura";
 const char* topic_umid = "mackenzie/ilhas-calor/umidade";
-const char* topic_bomba = "mackenzie/ilhas-calor/bomba";
+const char* topic_luz = "mackenzie/ilhas-calor/bomba";
 const char* topic_cmd = "mackenzie/ilhas-calor/comando";
 
 DHT dht(DHTPIN, DHTTYPE);
-
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+bool modoManual = false;
+bool luzLigada = false;
+
+void ligarLuz() {
+  digitalWrite(LED_PIN, HIGH);
+  luzLigada = true;
+}
+
+void desligarLuz() {
+  digitalWrite(LED_PIN, LOW);
+  luzLigada = false;
+}
 
 void callback(char* topic, byte* payload, unsigned int length) {
   String msg = "";
@@ -30,26 +42,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
     msg += (char)payload[i];
   }
 
+  msg.trim();
+  msg.toUpperCase();
+
   Serial.print("Comando recebido: ");
   Serial.println(msg);
 
-  unsigned long inicio = millis();
-
   if (msg == "LIGAR") {
-    digitalWrite(RELAY_PIN, HIGH);
-    Serial.println("BOMBA LIGADA REMOTAMENTE");
+    modoManual = true;
+    ligarLuz();
+    client.publish(topic_luz, "LIGADA");
+  } 
+  else if (msg == "DESLIGAR") {
+    modoManual = true;
+    desligarLuz();
+    client.publish(topic_luz, "DESLIGADA");
+  } 
+  else if (msg == "AUTO") {
+    modoManual = false;
+    Serial.println("Modo automatico ativado");
   }
-
-  if (msg == "DESLIGAR") {
-    digitalWrite(RELAY_PIN, LOW);
-    Serial.println("BOMBA DESLIGADA REMOTAMENTE");
-  }
-
-  unsigned long fim = millis();
-
-  Serial.print("Tempo comando->atuador: ");
-  Serial.print(fim - inicio);
-  Serial.println(" ms");
 }
 
 void conectarWiFi() {
@@ -62,40 +74,33 @@ void conectarWiFi() {
     Serial.print(".");
   }
 
-  Serial.println();
-  Serial.println("WiFi conectado");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("\nWiFi conectado");
 }
 
 void conectarMQTT() {
-
   while (!client.connected()) {
-
     Serial.print("Conectando MQTT...");
 
-    if (client.connect("ESP32_IlhasCalor")) {
+    String clientId = "ESP32_IlhasCalor_";
+    clientId += String(random(0xffff), HEX);
 
+    if (client.connect(clientId.c_str())) {
       Serial.println(" conectado");
-
       client.subscribe(topic_cmd);
-
+      Serial.println("Inscrito no topico de comando");
     } else {
-
       Serial.print(" erro=");
       Serial.println(client.state());
-
       delay(2000);
     }
   }
 }
 
 void setup() {
-
   Serial.begin(115200);
 
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  pinMode(LED_PIN, OUTPUT);
+  desligarLuz();
 
   dht.begin();
 
@@ -104,11 +109,12 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
+  conectarMQTT();
+
   Serial.println("Sistema iniciado");
 }
 
 void loop() {
-
   if (!client.connected()) {
     conectarMQTT();
   }
@@ -126,36 +132,25 @@ void loop() {
 
   Serial.print("Temperatura: ");
   Serial.print(temp);
-  Serial.print(" °C | Umidade: ");
+  Serial.print(" C | Umidade: ");
   Serial.print(umid);
   Serial.println(" %");
-
-  unsigned long inicioSensor = millis();
 
   client.publish(topic_temp, String(temp).c_str());
   client.publish(topic_umid, String(umid).c_str());
 
-  unsigned long fimSensor = millis();
-
-  Serial.print("Tempo sensor->MQTT: ");
-  Serial.print(fimSensor - inicioSensor);
-  Serial.println(" ms");
-
-  if (temp > TEMP_CRITICA) {
-
-    digitalWrite(RELAY_PIN, HIGH);
-
-    client.publish(topic_bomba, "LIGADA");
-
-    Serial.println("BOMBA LIGADA");
-
+  if (!modoManual) {
+    if (temp > TEMP_CRITICA) {
+      ligarLuz();
+      client.publish(topic_luz, "LIGADA");
+      Serial.println("LUZ LIGADA AUTOMATICAMENTE");
+    } else {
+      desligarLuz();
+      client.publish(topic_luz, "DESLIGADA");
+      Serial.println("LUZ DESLIGADA AUTOMATICAMENTE");
+    }
   } else {
-
-    digitalWrite(RELAY_PIN, LOW);
-
-    client.publish(topic_bomba, "DESLIGADA");
-
-    Serial.println("BOMBA DESLIGADA");
+    Serial.println("MODO MANUAL ATIVO");
   }
 
   delay(2000);
